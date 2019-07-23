@@ -34,42 +34,37 @@
 *
 * Author: Mike Phillips
 *********************************************************************/
-
+//#include<iostream>
 #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
 #include <pluginlib/class_list_macros.h>
 #include <nav_msgs/Path.h>
 #include <sbpl_lattice_planner/SBPLLatticePlannerStats.h>
 
 #include <costmap_2d/inflation_layer.h>
-
+#include <tf/transform_broadcaster.h>
 using namespace std;
 using namespace ros;
 
-
+// Register as a BaseGlobalPlanner plugin
 PLUGINLIB_DECLARE_CLASS(sbpl_latice_planner, SBPLLatticePlanner, sbpl_lattice_planner::SBPLLatticePlanner, nav_core::BaseGlobalPlanner);
-
 namespace sbpl_lattice_planner{
-
 class LatticeSCQ : public StateChangeQuery{
   public:
     LatticeSCQ(EnvironmentNAVXYTHETALAT* env, std::vector<nav2dcell_t> const & changedcellsV)
       : env_(env), changedcellsV_(changedcellsV) {
     }
-
     // lazy init, because we do not always end up calling this method
     virtual std::vector<int> const * getPredecessors() const{
       if(predsOfChangedCells_.empty() && !changedcellsV_.empty())
         env_->GetPredsofChangedEdges(&changedcellsV_, &predsOfChangedCells_);
       return &predsOfChangedCells_;
     }
-
     // lazy init, because we do not always end up calling this method
     virtual std::vector<int> const * getSuccessors() const{
       if(succsOfChangedCells_.empty() && !changedcellsV_.empty())
         env_->GetSuccsofChangedEdges(&changedcellsV_, &succsOfChangedCells_);
       return &succsOfChangedCells_;
     }
-
     EnvironmentNAVXYTHETALAT * env_;
     std::vector<nav2dcell_t> const & changedcellsV_;
     mutable std::vector<int> predsOfChangedCells_;
@@ -85,12 +80,10 @@ SBPLLatticePlanner::SBPLLatticePlanner(std::string name, costmap_2d::Costmap2DRO
   initialize(name, costmap_ros);
 }
 
-
 void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
   if(!initialized_){
     ros::NodeHandle private_nh("~/"+name);
     ros::NodeHandle nh(name);
-
     ROS_INFO("Name is %s", name.c_str());
 
     private_nh.param("planner_type", planner_type_, string("ARAPlanner"));
@@ -111,11 +104,8 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
     inscribed_inflated_obstacle_ = lethal_obstacle_-1;
     sbpl_cost_multiplier_ = (unsigned char) (costmap_2d::INSCRIBED_INFLATED_OBSTACLE/inscribed_inflated_obstacle_ + 1);
     ROS_DEBUG("SBPL: lethal: %uz, inscribed inflated: %uz, multiplier: %uz",lethal_obstacle,inscribed_inflated_obstacle_,sbpl_cost_multiplier_);
-
     costmap_ros_ = costmap_ros;
-
     std::vector<geometry_msgs::Point> footprint = costmap_ros_->getRobotFootprint();
-
     if ("XYThetaLattice" == environment_type_){
       ROS_DEBUG("Using a 3D costmap for theta lattice\n");
       env_ = new EnvironmentNAVXYTHETALAT();
@@ -124,7 +114,6 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
       ROS_ERROR("XYThetaLattice is currently the only supported environment!\n");
       exit(1);
     }
-
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
     unsigned char cost_possibly_circumscribed_tresh = 0;
@@ -154,7 +143,7 @@ void SBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* 
       pt.y = footprint[ii].y;
       perimeterptsV.push_back(pt);
     }
-
+    cout<<"YOUIBOT "<<primitive_filename_<<endl;
     bool ret;
     try{
       ret = env_->InitializeEnv(costmap_ros_->getCostmap()->getSizeInCellsX(), // width
